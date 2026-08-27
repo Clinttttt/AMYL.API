@@ -1,23 +1,59 @@
 # AMYL API architecture
 
-AMYL is a single ASP.NET Core project organized as a pragmatic vertical-slice application. The top-level source folders are ownership boundaries, not separate architectural layers.
+AMYL is a single ASP.NET Core project organized as a lean vertical-slice application. The four top-level source folders are ownership boundaries, not architectural layers.
+
+Reference design: `DOCUMENTATION_TECH/TOOLS_DOCS/DESIGN_PATTERN/vertical_slice/design_2_lean/`.
 
 ## Source boundaries
 
-- `Features` owns user-facing use cases. Each request folder keeps its endpoint, MediatR request, handler, validator, and request-specific response model together.
-- `Infrastructure` owns technology-specific implementations such as EF Core persistence, caching, JWT identity, and local file storage.
-- `Shared` contains only concepts used across unrelated slices, including domain entities, result values, security vocabulary, cache keys, and MediatR behaviors.
-- `Web` owns global ASP.NET Core and HTTP concerns such as authorization plumbing, Problem Details, host registration, middleware, rate limiting, and observability.
+```text
+Features/   what the application does      one file per use case, verb-named
+Domain/     what it is about               entities + Domain/Common primitives
+Data/       how it persists                EF Core only
+Shared/     how it is wired                small and boring
+```
+
+- `Features` owns use cases. Each slice is a single verb-named file holding its `Command`/`Query`, `Validator`, `internal Handler`, and `Map` together. A feature also owns any provider with only one consuming feature.
+- `Domain` owns entities and invariants, plus `Domain/Common` for `Result`, `Error`, `BaseEntity`, `AuditableEntity`, and `PaginatedList`. Entities are shared by slices; slices own their own request and response types.
+- `Data` owns `AppDbContext`, entity configurations, migrations, and shared query extensions.
+- `Shared` owns cross-cutting plumbing only: the validation behavior, the global exception handler, authorization plumbing, and DI/host extensions.
+
+## Dependency rule
+
+```text
+Features  ->  Domain, Data, Shared
+Data      ->  Domain
+Shared    ->  Domain
+Domain    ->  nothing
+```
+
+`AppDbContext` is the one legal exception: it names every entity because it is the composition root for the data model, exactly as `Program.cs` is for endpoints.
+
+## Provider ownership
+
+A provider is a class that talks to something outside the process.
+
+- One consuming feature, so the provider lives in that feature: `JwtTokenService` and `PasswordHasherService` in `Features/Authentication`, `MemoryFileStorage` in `Features/Memories`.
+- Two or more consuming features and it graduates to `Shared`. Move it when the second consumer appears, not before.
+- Pure DI wiring is not a provider. Redis, HybridCache, OpenTelemetry, JWT bearer, and rate limiting are extension methods in `Shared/Extensions`.
 
 ## Rules
 
-1. Add behavior under the owning feature and use case; do not recreate global `Commands`, `Queries`, `Dtos`, `Services`, `Common`, or `Helpers` folders.
-2. Keep request-specific contracts inside their slice. A contract shared by several use cases in one feature stays at that feature's root.
-3. Put provider and framework implementations in `Infrastructure` or `Web`. Introduce a feature-facing interface only when a real boundary is needed.
-4. Use MediatR commands for writes and queries for reads. FluentValidation runs through the single shared validation behavior.
-5. Return `Result` or `Result<T>` for expected failures. Only `Web/Extensions/ResultExtensions.cs` maps those failures to RFC 7807 HTTP responses.
-6. Let the global exception handler convert unexpected failures to safe Problem Details responses.
-7. Pass cancellation tokens through asynchronous database, cache, file, and provider work.
-8. Prefer cohesive slices and direct EF Core usage over generic repositories or premature shared abstractions.
+1. Slice files are verbs: `CreateMemory.cs`, never `MemoryService.cs`. Never recreate global `Commands`, `Queries`, `Dtos`, `Services`, `Common`, or `Helpers` folders.
+2. Handlers are `internal`. The endpoint is the only entry point into a slice.
+3. A response used by one slice nests in that slice. A response shared by sibling slices lives in `Features/{Feature}/Shared/`.
+4. Split a slice into its own folder only past roughly 150-200 lines, or when it needs private helpers.
+5. Return `Result` or `Result<T>` for expected failures. Only `Shared/Extensions/ResultExtensions.cs` maps them to RFC 7807 responses. `Result` never carries HTTP status codes.
+6. The global exception handler converts unexpected failures to safe Problem Details responses. Expected and unexpected paths never mix.
+7. Pass cancellation tokens through all database, cache, file, and provider work.
+8. Endpoint authorization does not enforce row ownership. Handlers must additionally scope every query and command to the authenticated user.
+9. Use EF Core directly. No generic repositories or unit-of-work wrappers.
+10. No slice references another slice. Use the database, a domain service, or a domain event.
 
-Feature endpoints are composed through route groups in `AuthenticationEndpoints.cs` and `MemoryEndpoints.cs`; each individual endpoint remains beside its use case.
+Endpoints are composed per feature in `AuthenticationModule.cs` and `MemoriesModule.cs`; each `Map` stays beside its use case.
+
+## Known open items
+
+- **Un-migrated model drift.** `AuditableEntity`, `MemoryConfiguration`, and `UserConfiguration` contain changes newer than the last migration. See the restructure notes; a hand-written migration is required because the auto-generated one renames `CreateAt` to `UpdatedAt` and would lose creation timestamps.
+- **`IFormFile` on commands.** `CreateMemory.Command` and `UpdateMemory.Command` carry `IFormFile`, which breaks the transport-agnostic request rule and does not bind from a JSON body. Bind multipart input at the endpoint and map to a feature-owned model.
+- **Unapplied rate limit policy.** `RateLimitPolicies.Login` is defined but not attached to the login endpoint.
