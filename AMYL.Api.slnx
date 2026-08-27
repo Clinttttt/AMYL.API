@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AMYL.Api/AMYL.Api.csproj" />
+  <Project Path="AMYL.Tests/AMYL.Tests.csproj" Id="c9cc51d7-0b41-489a-8543-63b9bfac99ff" />
+</Solution>

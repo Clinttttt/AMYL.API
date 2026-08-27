@@ -1,0 +1,48 @@
+## Build output
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.csproj.user
+
+## Local secrets and environment overrides
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.Local.json
+*.pfx
+*.p12
+.env
+.env.*
+
+## User uploads (runtime content, not source)
+wwwroot/uploads/*
+!wwwroot/uploads/.gitkeep
+
+## Test and coverage output
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.trx
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!packages/build/
+
+## OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
