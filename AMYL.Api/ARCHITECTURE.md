@@ -54,6 +54,12 @@ Endpoints are composed per feature in `AuthenticationModule.cs` and `MemoriesMod
 
 ## Known open items
 
-- **Un-migrated model drift.** `AuditableEntity`, `MemoryConfiguration`, and `UserConfiguration` contain changes newer than the last migration. See the restructure notes; a hand-written migration is required because the auto-generated one renames `CreateAt` to `UpdatedAt` and would lose creation timestamps.
 - **`IFormFile` on commands.** `CreateMemory.Command` and `UpdateMemory.Command` carry `IFormFile`, which breaks the transport-agnostic request rule and does not bind from a JSON body. Bind multipart input at the endpoint and map to a feature-owned model.
 - **Unapplied rate limit policy.** `RateLimitPolicies.Login` is defined but not attached to the login endpoint.
+- **`AuditableEntity.DeletedAt` and `UpdatedAt` are non-nullable `DateTime`.** Unset rows therefore carry a `0001-01-01` sentinel rather than `NULL`. Making both `DateTime?` would model "never updated" and "not deleted" honestly, but requires another migration.
+- **Soft delete is dead scaffolding.** `IsDeleted`, `DeletedAt`, `DeletedBy`, and `SoftDelete()` exist on `AuditableEntity` but nothing calls or filters on them, and `DeleteMemory` performs a hard `Remove()`. Either commit to it (call `SoftDelete()` and add an EF global query filter) or delete the fields. Leaving it is the worst option because the fields imply a guarantee the code does not provide. See `advanced_patterns/07_specification_pattern.md`.
+- **Audit fields are never populated.** `CreatedBy`, `UpdatedAt`, and `UpdatedBy` are written by no code path. `UpdateMemory` does not touch `UpdatedAt`. A `SaveChangesAsync` override or an EF interceptor is the usual fix.
+
+## Resolved
+
+- **Un-migrated model drift** — fixed by `20260827053153_AuditFields_And_ExplicitUserFk`, hand-written to rename `CreateAt` to `CreatedAt` rather than to `UpdatedAt` as the scaffolder proposed. `ef migrations has-pending-model-changes` now reports none.
