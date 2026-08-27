@@ -30,7 +30,7 @@ namespace AMYL.Api.Features.Memories.List
             var query = context.Memories
                 .AsNoTracking()
                 .Where(memory => memory.UserId == userId)
-                .OrderByDescending(memory => memory.CreateAt)
+                .OrderByDescending(memory => memory.CreatedAt)
                 .ThenBy(memory => memory.Id)
                 .Select(memory => new MemoryDto(
                     MemoryId: memory.Id,
@@ -39,7 +39,7 @@ namespace AMYL.Api.Features.Memories.List
                     ImageUrl: memory.ImageUrl,
                     VideoUrl: memory.VideoUrl,
                     AudioUrl: memory.AudioUrl,
-                    CreatedAt: memory.CreateAt));
+                    CreatedAt: memory.CreatedAt));
 
             query = query.WhereIf(
                 !string.IsNullOrWhiteSpace(search),

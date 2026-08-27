@@ -36,7 +36,7 @@ namespace AMYL.Api.Features.Memories.GetByType
             var query = context.Memories
                 .AsNoTracking()
                 .Where(s => s.UserId == userId && s.MemoryType == type)
-                .OrderByDescending(s => s.CreateAt)
+                .OrderByDescending(s => s.CreatedAt)
                 .ThenBy(s => s.Id)
                 .Select(m => new MemoryDto(
                      MemoryId: m.Id,
@@ -45,7 +45,7 @@ namespace AMYL.Api.Features.Memories.GetByType
                      ImageUrl: m.ImageUrl,
                      VideoUrl: m.VideoUrl,
                      AudioUrl: m.AudioUrl,
-                     CreatedAt: m.CreateAt
+                     CreatedAt: m.CreatedAt
                     ));
 
             var searchTrim = search?.Trim();

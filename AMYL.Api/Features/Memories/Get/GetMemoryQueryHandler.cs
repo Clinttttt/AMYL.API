@@ -39,7 +39,7 @@ namespace AMYL.Api.Features.Memories.Get
                    ImageUrl: s.ImageUrl,
                    VideoUrl: s.VideoUrl,
                    AudioUrl: s.AudioUrl,
-                   CreatedAt: s.CreateAt
+                   CreatedAt: s.CreatedAt
                    )).FirstOrDefaultAsync(cancellationToken);
         }
     }
