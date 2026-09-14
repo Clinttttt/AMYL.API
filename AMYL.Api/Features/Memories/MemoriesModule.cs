@@ -1,32 +1,15 @@
 namespace AMYL.Api.Features.Memories;
 
+/// <summary>
+/// Registers the providers this feature owns. Routing is no longer listed here —
+/// each slice's <c>Endpoint</c> is discovered by assembly scan.
+/// </summary>
 public static class MemoriesModule
 {
-    /// <summary>
-    /// Registers the providers this feature owns.
-    /// </summary>
     public static IServiceCollection AddMemoriesFeature(this IServiceCollection services)
     {
         services.AddScoped<IFileStorage, MemoryFileStorage>();
 
         return services;
-    }
-
-    public static void MapMemories(this IEndpointRouteBuilder app)
-    {
-        var group = app
-            .MapGroup("/api/memories")
-            .WithTags("Memory")
-            .RequireAuthorization();
-
-        CreateMemory.Map(group);
-        UpdateMemory.Map(group);
-        DeleteMemory.Map(group);
-        GroupMemoriesByMonth.Map(group);
-        GetMemory.Map(group);
-        ListMemories.Map(group);
-        GetMemoryStats.Map(group);
-        ListMemoriesByType.Map(group);
-        ListRecentMemories.Map(group);
     }
 }

@@ -1,6 +1,6 @@
-using AMYL.Api.Data;
+using AMYL.Api.Infrastructure.Persistence;
 using AMYL.Api.Domain;
-using AMYL.Api.Shared.Authorization;
+using AMYL.Api.Infrastructure.Authentication;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -30,13 +30,23 @@ public sealed class JwtTokenService(
         CancellationToken cancellationToken)
     {
         var refreshToken = GenerateRefreshToken();
-        user.RefreshToken = refreshToken;
+
+        // Only the hash is persisted: the raw token goes to the client and never exists in the
+        // database, so a leaked Users table cannot be replayed to mint new sessions.
+        user.RefreshToken = HashRefreshToken(refreshToken);
         user.RefreshTokenExpiry = timeProvider.GetUtcNow().UtcDateTime.AddDays(7);
 
         await context.SaveChangesAsync(cancellationToken);
 
         return new TokenResponse(CreateAccessToken(user), refreshToken);
     }
+
+    /// <summary>
+    /// Hashes a refresh token for storage and lookup. A refresh token is a high-entropy random
+    /// value, so a plain SHA-256 is enough here; it does not need a slow password hash.
+    /// </summary>
+    public static string HashRefreshToken(string refreshToken) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
 
     private string CreateAccessToken(Users user)
     {
@@ -50,9 +60,8 @@ public sealed class JwtTokenService(
         claims.AddRange(RolePermissions.GetPermissions(user)
             .Select(permission => new Claim(CustomClaimTypes.Permission, permission)));
 
-        var secretKey = configuration["JwtSettings:SecretKey"]
-            ?? throw new InvalidOperationException("JWT secret key is not configured.");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+    
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JwtSettings:SecretKey"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
 
         var token = new JwtSecurityToken(

@@ -16,7 +16,7 @@ public sealed record Error(
     string Description,
     IReadOnlyDictionary<string, string[]>? ValidationErrors = null);
 
-public class Result
+public class Result : IValidationResult<Result>
 {
     protected Result(bool isSuccess, Error? error)
     {
@@ -34,6 +34,14 @@ public class Result
     public Error? Error { get; }
 
     public static Result Success() => new(true, null);
+
+    /// <summary>
+    /// Fails with a named <see cref="Error"/> from a <c>Domain/Errors</c> catalog.
+    /// Preferred over the string overloads: the code is stable and greppable.
+    /// </summary>
+    public static Result Failure(Error error) => new(false, error);
+
+    public static implicit operator Result(Error error) => Failure(error);
 
     public static Result Failure(string description) =>
         new(false, new Error(ErrorType.Failure, "request.failure", description));
@@ -61,7 +69,7 @@ public class Result
             errors));
 }
 
-public sealed class Result<T> : Result
+public sealed class Result<T> : Result, IValidationResult<Result<T>>
 {
     private Result(T? value, bool isSuccess, Error? error)
         : base(isSuccess, error)
@@ -74,6 +82,11 @@ public sealed class Result<T> : Result
     public static Result<T> Success(T value) => new(value, true, null);
 
     public static implicit operator Result<T>(T value) => Success(value);
+
+    /// <summary>Fails with a named <see cref="Error"/> from a <c>Domain/Errors</c> catalog.</summary>
+    public new static Result<T> Failure(Error error) => new(default, false, error);
+
+    public static implicit operator Result<T>(Error error) => Failure(error);
 
     public new static Result<T> Failure(string description) =>
         new(default, false, new Error(ErrorType.Failure, "request.failure", description));

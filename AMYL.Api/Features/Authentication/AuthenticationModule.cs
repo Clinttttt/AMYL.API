@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Identity;
 
 namespace AMYL.Api.Features.Authentication;
 
+/// <summary>
+/// Registers the providers this feature owns. Routing is no longer listed here —
+/// each slice's <c>Endpoint</c> is discovered by assembly scan.
+/// </summary>
 public static class AuthenticationModule
 {
-    /// <summary>
-    /// Registers the providers this feature owns.
-    /// </summary>
     public static IServiceCollection AddAuthenticationFeature(this IServiceCollection services)
     {
         services.AddScoped<ITokenService, JwtTokenService>();
@@ -14,15 +15,5 @@ public static class AuthenticationModule
         services.AddScoped<IPasswordHasherService, PasswordHasherService>();
 
         return services;
-    }
-
-    public static void MapAuthentication(this IEndpointRouteBuilder app)
-    {
-        var group = app
-            .MapGroup("/api/auth")
-            .WithTags("Auth");
-
-        Register.Map(group);
-        Login.Map(group);
     }
 }
